@@ -19,13 +19,7 @@ class CarRobot:
         self.disk_centers = (rot(self.state[2])@self.og_disk_centers.T).T + self.state[:2]
         self.og_vertices = param.vertices # original vertice coords w.r.t. car center at (0,0), and yaw at 0.
         # self.vertices = param.vertices # [rl,rr,fr,fl,lc,gc]
-        # print("rot(self.state[2]): ", rot(self.state[2]))
-        # print("self.og_vertices: ", self.og_vertices)
-        # print("self.og_vertices.T: ", self.og_vertices.T)
-        # print("self.state[:2]: ",self.state[:2])
-        print("(rot(self.state[2])@self.og_vertices.T).T + self.state[:2]: ", (rot(self.state[2])@self.og_vertices.T).T + self.state[:2])
         self.vertices = (rot(self.state[2])@self.og_vertices.T).T + self.state[:2]
-        print("vertices: ", self.vertices)
         self.v_limits = param.v_limits
         self.a_limits = param.a_limits
         self.dt = dt
@@ -36,12 +30,13 @@ class CarRobot:
         self.ray_num = param.ray_num
         # Lidar observations
         self.angles = generate_angles(self.fan_range, self.fan_range, self.ray_num, reso = 0.098, is_num_based = True)
-        self.end_points = generate_ends(self.angles,self.max_range)
-        # print(" angles: ", self.angles)
-        # print("ends show here : ", self.end_points.shape)
-        # print("state[2], theta: ", self.state[2])
-        # print("x, y: ", self.state[:2])
-        # print("new ends: ",ends_tf(self.end_points, self.state[2],self.state[:2]))
+        self.og_end_points = generate_ends(self.angles,self.max_range)
+        self.end_points = ends_tf(self.og_end_points, self.state[2],self.state[:2])
+        print(" angles: ", self.angles)
+        print("ends show here : ", self.og_end_points.shape)
+        print("state[2], theta: ", self.state[2])
+        print("x, y: ", self.state[:2])
+        print("new ends: ",ends_tf(self.og_end_points, self.state[2],self.state[:2]))
         self.ranges = None
         self.points = None
         # self.ranges, self.points = generate_range_points(start=(self.state[0],self.state[1]),
@@ -79,16 +74,60 @@ class CarRobot:
         # 5. history 
         self.history = np.delete(self.history, 0 , axis=0)
         self.history = np.insert(self.history, len(self.history), self.state, axis=0)
+        # 6. ends
+        self.end_points = ends_tf(self.og_end_points, self.state[2],self.state[:2])
     
     def sensor_update(self, map, polygons, circles):
         """
         Sensor updates after state updates to sychronize agents in the environment
         """
         # 5. Lidar related update
-        self.ranges, self.points = generate_range_points(start=(self.state[0],self.state[1]),
-                                                         ends=ends_tf(self.end_points, self.state[2],self.state[:2]),
+        self.ranges, self.points = generate_range_points(start=(self.vertices[4,0],self.vertices[4,1]),
+                                                         ends=self.end_points,
                                                          map=map, polygons=polygons, circles=circles, max_range=self.max_range)
+
+    # def generate_range_points(self,start, ends, map,polygons,circles,max_range = 6.0):
     
+    #     ranges = []
+    #     points = [] # x,y coords of real points
+    #     for end in ends:
+    #         min_range = max_range
+    #         min_point = end
+    #         # 1. line map
+    #         p = line_map((start,end),map, reso=0.01) # line_map does not return None, so its a baseline
+    #         ran = dist(start,p)
+    #         if ran < min_range:
+    #             min_range = ran
+    #             min_point = p
+    #         # 2. line polygons
+    #         for polygon in polygons:
+    #             print("Polygons len: ",len(polygons))
+    #             print("Polygon ID: ",self.id)
+    #             if polygon == polygons[self.id]:
+    #                 continue
+    #             p = line_polygon((start,end), polygon)
+    #             if (p ==None).all():
+    #                 continue
+    #             else:
+    #                 ran = dist(start,p)
+    #                 if ran < min_range:
+    #                     min_range = ran
+    #                     min_point = p
+    #         # 3. line circles
+    #         for circle in circles:
+    #             p = line_circle((start,end), circle)
+    #             if (p == None).all():
+    #                 continue
+    #             else:
+    #                 ran = dist(start,p)
+    #                 if ran < min_range:
+    #                     min_range = ran
+    #                     min_point = p
+    #         ranges.append(min_range)
+    #         points.append(min_point)
+    #     return ranges, points
+
+
     def get_scans(self):
         return self.ranges
     def get_states(self):
