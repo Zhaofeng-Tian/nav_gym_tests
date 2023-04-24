@@ -1,8 +1,11 @@
+
+ 
+
 import numpy as np
 from math import pi, cos,sin
 from nav_gym.obj.geometry.util import *
 
-def generate_angles(fan_range = np.array([0, 2*pi]), max_range = 6.0, ray_num = 64, reso = 0.098, is_num_based = True, ):
+def generate_angles(fan_range = np.array([0, 2*pi]), max_range = 6.0, ray_num = 32, reso = 0.098, is_num_based = True, ):
     if is_num_based:
         angles = np.linspace(fan_range[0], fan_range[1], ray_num+1)[:-1] # +1 and [:-1] to remove angle=6.28 that overlaps angle=0.0
     else:
@@ -36,10 +39,10 @@ def generate_range_points(start, ends, map,polygons,circles,max_range = 6.0):
             min_range = ran
             min_point = p
         # 2. line polygons
-        print("Lidar testing==> polygons len: ", len(polygons))
+        # print("Lidar testing==> polygons len: ", len(polygons))
         for polygon in polygons:
             p = line_polygon((start,end), polygon)
-            print("Lidar testing==> intersection : ", p)
+            # print("Lidar testing==> intersection : ", p)
             if p ==None:
                 continue
             else:
@@ -57,6 +60,23 @@ def generate_range_points(start, ends, map,polygons,circles,max_range = 6.0):
                 if ran < min_range:
                     min_range = ran
                     min_point = p
+        ranges.append(min_range)
+        points.append(min_point)
+    return ranges, points
+
+def map_based_generate_range_points(start, ends, map,max_range = 6.0, reso=0.01):
+    
+    ranges = []
+    points = [] # x,y coords of real points
+    for end in ends:
+        min_range = max_range
+        min_point = end
+        # 1. line map
+        p = line_map((start,end),map, reso) # line_map does not return None, so its a baseline
+        ran = dist(start,p)
+        if ran < min_range:
+            min_range = ran
+            min_point = p
         ranges.append(min_range)
         points.append(min_point)
     return ranges, points

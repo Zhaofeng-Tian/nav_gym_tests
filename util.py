@@ -176,7 +176,7 @@ def line_map(line,map,reso):
     # x = []
     # y = []
     while (x0 != x1 or y0 != y1):
-        if map[y0,x0]== 0:
+        if map[y0,x0]== 1:
             return x0*reso,y0*reso
         # x.append(x0)
         # y.append(y0)
