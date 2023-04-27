@@ -17,8 +17,13 @@ class CarParam:
             self.fan_range = np.array([0, 2*pi])
             self.min_range = 0.1
             self.max_range = 6.0
-            self.ray_num = 64
+            self.ray_num = 32
             self.angle_reso = 0.098
+            # Value map parameters
+            self.value_base = 0.9900
+            self.dv = 0.0001
+            # Map parameters
+            self.world_reso = 0.01
 
 
             """

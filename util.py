@@ -189,6 +189,38 @@ def line_map(line,map,reso):
             y0 += sy
     return x1*reso, y1*reso
 
+# (start,end),map, reso,id_value,dv
+def id_line_map(line,map,reso,id_value,dv):
+    hdv = dv/2
+    x0, y0 = line[0]
+    x1, y1 = line[1]
+    x0 = round(x0/reso); y0 = round(y0/reso)
+    x1 = round(x1/reso); y1 = round(y1/reso) 
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    sx = -1 if x0 > x1 else 1
+    sy = -1 if y0 > y1 else 1
+    err = dx - dy
+
+    # x = []
+    # y = []
+    while (x0 != x1 or y0 != y1):
+        # print("id_value: ", id_value, " hdv: ",hdv)
+        # print("smaller than value: ",map[y0,x0]<=id_value-hdv)
+        if map[y0,x0]>= 0.5 and ((map[y0,x0]<=id_value-hdv) or (map[y0,x0] >= id_value + hdv)) :
+            return x0*reso,y0*reso
+        # x.append(x0)
+        # y.append(y0)
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x0 += sx
+        if e2 < dx:
+            err += dx
+            y0 += sy
+    return x1*reso, y1*reso
+
+
 
 
 def dist(point1,point2):

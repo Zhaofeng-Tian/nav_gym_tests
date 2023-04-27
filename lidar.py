@@ -1,6 +1,4 @@
 
- 
-
 import numpy as np
 from math import pi, cos,sin
 from nav_gym.obj.geometry.util import *
@@ -80,6 +78,25 @@ def map_based_generate_range_points(start, ends, map,max_range = 6.0, reso=0.01)
         ranges.append(min_range)
         points.append(min_point)
     return ranges, points
+
+def map_id_generate_range_points(start, ends, map, id_value,dv, max_range = 6.0, reso=0.01):
+    
+    ranges = []
+    points = [] # x,y coords of real points
+    for end in ends:
+        min_range = max_range
+        min_point = end
+        # 1. line map
+        p = id_line_map((start,end),map, reso,id_value,dv) # line_map does not return None, so its a baseline
+        ran = dist(start,p)
+        if ran < min_range:
+            min_range = ran
+            min_point = p
+        ranges.append(min_range)
+        points.append(min_point)
+    return ranges, points
+
+
 
 def test_ends():
     a= generate_angles(ray_num=4)

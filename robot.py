@@ -5,10 +5,15 @@ from nav_gym.obj.geometry.lidar import *
 from nav_gym.obj.robot.robot_param import CarParam
 import os
 from skimage import io
+from skimage.draw import polygon
 
 class CarRobot:
     def __init__(self,id, param,initial_state = np.array([0.,0.,0.,0.,0.,]), history_len = 5,dt=0.2):
         self.id = id
+        self.value_base = param.value_base # base value of car robots
+        self.dv = param.dv # delta value, the id value difference between two id-neighboring robots
+        self.id_value = self.calc_id_value()
+        self.world_reso = param.world_reso
         self.state = initial_state #[x, y, theta, v, phi]
         self.history = np.tile(initial_state,(history_len,1)).reshape((history_len,len(initial_state)))
         self.shape = param.shape
@@ -32,11 +37,11 @@ class CarRobot:
         self.angles = generate_angles(self.fan_range, self.fan_range, self.ray_num, reso = 0.098, is_num_based = True)
         self.og_end_points = generate_ends(self.angles,self.max_range)
         self.end_points = ends_tf(self.og_end_points, self.state[2],self.state[:2])
-        print(" angles: ", self.angles)
-        print("ends show here : ", self.og_end_points.shape)
-        print("state[2], theta: ", self.state[2])
-        print("x, y: ", self.state[:2])
-        print("new ends: ",ends_tf(self.og_end_points, self.state[2],self.state[:2]))
+        # print(" angles: ", self.angles)
+        # print("ends show here : ", self.og_end_points.shape)
+        # print("state[2], theta: ", self.state[2])
+        # print("x, y: ", self.state[:2])
+        # print("new ends: ",ends_tf(self.og_end_points, self.state[2],self.state[:2]))
         self.ranges = None
         self.points = None
         # self.ranges, self.points = generate_range_points(start=(self.state[0],self.state[1]),
@@ -82,51 +87,43 @@ class CarRobot:
         Sensor updates after state updates to sychronize agents in the environment
         """
         # 5. Lidar related update
+        no_ego_map = map.copy()
+        self.remove_body(no_ego_map)
         self.ranges, self.points = generate_range_points(start=(self.vertices[4,0],self.vertices[4,1]),
                                                          ends=self.end_points,
-                                                         map=map, polygons=polygons, circles=circles, max_range=self.max_range)
+                                                         map=no_ego_map, polygons=polygons, circles=circles, max_range=self.max_range)
+    def map_based_sensor_update(self, map):
+        no_ego_map = map.copy()
+        self.remove_body(no_ego_map)
+        self.ranges, self.points = map_based_generate_range_points(start=(self.vertices[4,0],self.vertices[4,1]),
+                                                         ends=self.end_points,
+                                                         map = no_ego_map)
+    def map_id_sensor_update(self,map):
+        self.ranges, self.points = map_id_generate_range_points(start=(self.vertices[4,0],self.vertices[4,1]),
+                                                         ends=self.end_points, map = map,
+                                                         id_value = self.id_value, dv = self.dv)
 
-    # def generate_range_points(self,start, ends, map,polygons,circles,max_range = 6.0):
+    def id_fill_body(self,map):
+        # dv = 0.0001 # to calc map id value
+        r = np.round(self.vertices[:4][:,1]/self.world_reso)
+        c = np.round(self.vertices[:4][:,0]/self.world_reso)
+        rr, cc = polygon(r, c)
+        map[rr,cc] = self.value_base+self.dv*self.id # id=0: 0.9900; id=1:0.9901 how to differentiate? if 0.99+id*dv-dv/2 < value <0.99+id*dv+dv/2
+
+    def fill_body(self, map):
+        r = self.vertices[:4][:,1]
+        c = self.vertices[:4][:,0]
+        rr, cc = polygon(r, c)
+        map[rr,cc] = 1
+
+    def remove_body(self, map):
+        r = self.vertices[:4][:,1]
+        c = self.vertices[:4][:,0]
+        rr, cc = polygon(r, c)
+        map[rr,cc] = 0
     
-    #     ranges = []
-    #     points = [] # x,y coords of real points
-    #     for end in ends:
-    #         min_range = max_range
-    #         min_point = end
-    #         # 1. line map
-    #         p = line_map((start,end),map, reso=0.01) # line_map does not return None, so its a baseline
-    #         ran = dist(start,p)
-    #         if ran < min_range:
-    #             min_range = ran
-    #             min_point = p
-    #         # 2. line polygons
-    #         for polygon in polygons:
-    #             print("Polygons len: ",len(polygons))
-    #             print("Polygon ID: ",self.id)
-    #             if polygon == polygons[self.id]:
-    #                 continue
-    #             p = line_polygon((start,end), polygon)
-    #             if (p ==None).all():
-    #                 continue
-    #             else:
-    #                 ran = dist(start,p)
-    #                 if ran < min_range:
-    #                     min_range = ran
-    #                     min_point = p
-    #         # 3. line circles
-    #         for circle in circles:
-    #             p = line_circle((start,end), circle)
-    #             if (p == None).all():
-    #                 continue
-    #             else:
-    #                 ran = dist(start,p)
-    #                 if ran < min_range:
-    #                     min_range = ran
-    #                     min_point = p
-    #         ranges.append(min_range)
-    #         points.append(min_point)
-    #     return ranges, points
-
+    def calc_id_value(self):
+        return self.value_base+self.dv*self.id
 
     def get_scans(self):
         return self.ranges
